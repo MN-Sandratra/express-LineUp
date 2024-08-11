@@ -51,9 +51,10 @@ export default class Service{
                 break;
             }
         }
+
         if (final){
             this.services.content.push({
-                type : this.services.content[this.services.content.length-1].type + 1,
+                type : (this.services.content[this.services.content.length - 1]?.type ?? 0) + 1,
                 category : cat,
                 id : id
             });

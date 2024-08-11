@@ -46,6 +46,7 @@ class Service {
     }
     //methode pour ajouter un nouveau service
     addService(cat, id) {
+        var _a, _b;
         let final = true;
         this.updateLocalService();
         for (let i of this.services.content) {
@@ -56,7 +57,7 @@ class Service {
         }
         if (final) {
             this.services.content.push({
-                type: this.services.content[this.services.content.length - 1].type + 1,
+                type: ((_b = (_a = this.services.content[this.services.content.length - 1]) === null || _a === void 0 ? void 0 : _a.type) !== null && _b !== void 0 ? _b : 0) + 1,
                 category: cat,
                 id: id
             });
