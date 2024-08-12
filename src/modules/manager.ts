@@ -2,254 +2,239 @@ import Log from './log';
 import Service from './service';
 import Print from './print';
 
-export default class Manager{
-    private log : Log;
-    private data : any;
-    private service : Service;
-    private itteration = 0;
-    private evaluation : number[];
-    private print : Print;
+export default class Manager {
+    private log: Log;
+    private data: any;
+    private service: Service;
+    private iteration: number;
+    private evaluation: number[];
+    private print: Print;
 
-    constructor(){
+    constructor() {
         this.log = new Log();
         this.service = new Service();
         this.print = new Print();
         this.evaluation = [];
+        this.iteration = 0;
         this.data = [];
+        this.initialize();
     }
 
-    //fonction pour evaluer la priorité du fil
-    private Evaluate(){
-        this.itteration = this.log.getFileContent().itteration;
-        this.data = this.log.getFileContent().data;
+    private async initialize() {
+        this.data = await this.log.getData();
+        this.iteration = await this.log.getIteration();
+        this.Evaluate();
+    }
+
+    private async Evaluate() {
         let total = this.data.length;
-        this.data.forEach((element : any, index : number) => {
-                element.evaluation = element.content.length / total;         
+        this.data.forEach((element: any) => {
+            element.evaluation = element.content.length / total;
         });
     }
 
-    //fonction pour avoir le plus libre des caisses
-    private getFree(cat : number) : number{
-        this.itteration = this.log.getFileContent().itteration;
-        this.data = this.log.getFileContent().data;
-        let free = -1 ;
-        if (this.data.length > 0){
+    private async getFree(cat: number): Promise<number> {
+        let free = -1;
+        if (this.data.length > 0) {
             this.Evaluate();
-            
             let max = 99999;
-            this.data.forEach((element : any, index : number) => {
-                if (max > element.evaluation && element.free && element.type==cat) {
+            this.data.forEach((element: any, index: number) => {
+                if (max > element.evaluation && element.free && element.type == cat) {
                     free = index;
                     max = element.evaluation;
-                };
+                }
             });
         }
-        return free
+        return free;
     }
 
-    //fonction d'ajout de caisse
-    public addCaisse(caisse : number,cat : number){
-        this.itteration = this.log.getFileContent().itteration;
-        this.data = this.log.getFileContent().data;
+    public async addCaisse(caisse: number, cat: number) {
         let test = true;
-        this.data.forEach((element : any) => {
-            if (element.caisse == caisse && element.type == cat){
+        const category = await this.service.getCat(cat);
+        this.data.forEach((element: any) => {
+            if (element.caisse === caisse && element.type === cat) {
                 test = false;
                 element.free = true;
             }
         });
-        if (test){
+        if (test && category) {
             this.data.push({
-                caisse : caisse,
-                free : true,
-                content : [],
-                evaluation : 0,
-                category : this.service.getCat(cat).category,
-                type : this.service.getCat(cat).type,
-                id : this.service.getCat(cat).id
+                caisse: caisse,
+                free: true,
+                content: [],
+                evaluation: 0,
+                category: category.category,
+                type: category.type,
+                id: category.id
             });
         }
-        
-        this.log.updateLog(this.data,this.itteration);
+
+        await this.log.updateData(this.data);
     }
 
-    //fonction pour avoir les data
-    public getCaisses() : any{
-        this.itteration = this.log.getFileContent().itteration;
-        this.data = this.log.getFileContent().data;
+    public async getCaisses() {
+        this.data = await this.log.getData();
         return this.data;
     }
 
-    //fonction pour avoir les data d'une caisse
-    public getCaisse(caisse : string) : any{
-        this.itteration = this.log.getFileContent().itteration;
-        this.data = this.log.getFileContent().data;
+    public async getCaisse(caisse: string): Promise<any> {
         const tmp = caisse.split('-');
-        for (let element of this.data){
-            if (element.caisse == parseInt(tmp[1]) && element.type == parseInt(tmp[0])){
-                this.log.updateLog(this.data,this.itteration);
+        this.data = await this.log.getData();
+        for (let element of this.data) {
+            if (element.caisse == parseInt(tmp[1]) && element.type == parseInt(tmp[0])) {
+                await this.log.updateData(this.data);
                 return element;
             }
         }
     }
 
-    //fonction pour switch caisse
-    public turnCaisse(caisse : number, cat : number) : boolean{
-        this.itteration = this.log.getFileContent().itteration;
-        this.data = this.log.getFileContent().data;
+    public async turnCaisse(caisse: number, cat: number): Promise<boolean> {
+        this.data = await this.log.getData();
         for (let element in this.data) {
-            if (this.data[element].caisse == caisse && this.data[element].type == cat){
+            if (this.data[element].caisse == caisse && this.data[element].type == cat) {
                 this.data[element].free = !this.data[element].free;
-                this.log.updateLog(this.data,this.itteration);
+                await this.log.updateData(this.data);
                 return this.data[element].free;
             }
         };
-        this.log.updateLog(this.data,this.itteration);
+        await this.log.updateData(this.data);
         return false;
     }
 
-    //fonction pour ajouter numero
-    public getNumber(cat : number) : Object{
-        this.itteration = this.log.getFileContent().itteration;
-        this.data = this.log.getFileContent().data;
-        if (this.getFree(cat) != -1){
-            
-            this.itteration++;
-            const numero = this.itteration;
-            const caisse = this.getFree(cat);
-            const date = new Date()
-            this.data[caisse].content.push({
-                numero : numero,
-                date : date,
-                type : this.service.getCat(cat).type
-            });
-            this.log.updateLog(this.data,numero);
-            //this.print.printNumber(numero,this.service.getCat(cat).id+'-'+this.data[caisse].caisse,this.service.getCat(cat).category,new Date());
-            return {
-                Caisse : this.data[caisse].caisse,
-                numero : numero,
-                date : date,
-                category : this.service.getCat(cat).category
-            };
-        }else{
-            return {
-                Caisse : 0,
-                numero : 0,
-                data : new Date(),
-                category : 'null'
+    public async getNumber(cat: number): Promise<Object> {
+        const freeCaisseIndex = await this.getFree(cat);
+        this.data = await this.log.getData();
+        this.iteration = await this.log.getIteration();
+
+        if (freeCaisseIndex != -1) {
+            this.iteration++;
+            const numero = this.iteration;
+            const caisse = this.data[freeCaisseIndex];
+            const date = new Date();
+            const category = await this.service.getCat(cat);
+
+            if (category) {
+                caisse.content.push({
+                    numero: numero,
+                    date: date,
+                    type: category.type
+                });
+                await this.log.updateData(this.data);
+                await this.log.updateIteration(this.iteration);
+                // this.print.printNumber(numero, category.id + '-' + this.data[freeCaisseIndex].caisse, category.category, new Date());
+                return {
+                    Caisse: this.data[freeCaisseIndex].caisse,
+                    numero: numero,
+                    date: date,
+                    category: category.category
+                };
             }
+        } else {
+            return {
+                Caisse: 0,
+                numero: 0,
+                data: new Date(),
+                category: 'null'
+            };
         }
-        
+        return {};
     }
 
-    public removeNum(caisse : string){
-        this.itteration = this.log.getFileContent().itteration;
-        this.data = this.log.getFileContent().data;
+    public async removeNum(caisse: string) {
+        this.data = await this.log.getData();
         let s = caisse.split('-');
-        this.data.forEach((element : any) => {
-            if (element.caisse == parseInt(s[1]) && element.type == parseInt(s[0])){
+        this.data.forEach((element: any) => {
+            if (element.caisse == parseInt(s[1]) && element.type == parseInt(s[0])) {
                 element.content.shift();
-                return ;
+                return;
             }
         });
-        
-        this.log.updateLog(this.data,this.itteration);
+        await this.log.updateData(this.data);
     }
 
-    //fonction pour se deconnecter
-    public deconnexion(caisse : number, cat : number){
-        this.itteration = this.log.getFileContent().itteration;
-        this.data = this.log.getFileContent().data;
+    public async deconnexion(caisse: number, cat: number) {
+        this.data = await this.log.getData();
         let tmp = [];
         let test = false;
-        for (let element in this.data){
-            if (this.data[element].caisse == caisse && this.data[element].type == cat){
-                if (this.data.length > 1){
+        for (let element in this.data) {
+            if (this.data[element].caisse == caisse && this.data[element].type == cat) {
+                if (this.data.length > 1) {
                     test = true;
-                    tmp = this.data[element];                
+                    tmp = this.data[element];
                 }
-                this.data.splice(element,1);
-                
+                this.data.splice(element, 1);
                 break;
             }
         }
 
-        if (test){
+        if (test) {
             this.fillCaissse(tmp);
         }
 
-        this.log.updateLog(this.data,this.itteration);
+        await this.log.updateData(this.data);
     }
 
-    //Methode pour remplir les caisses de contenues
-    private fillCaissse(content : any){
+    private fillCaissse(content: any) {
         const len = this.data.length;
         let i = 0;
         let exist = false;
         const cat = content.id;
-        for (let en of this.data){
-            if (en.type == cat){
+        for (let en of this.data) {
+            if (en.type == cat) {
                 exist = true;
                 break;
             }
         }
-        if (exist){
-            for (let e in content.content){
-                while (this.data[i%len].type != cat){
+        if (exist) {
+            for (let e in content.content) {
+                while (this.data[i % len].type != cat) {
                     i++;
                 }
-                if (this.data[i%len].type == cat){
-                    this.data[i%len].content.push(content.content[e]);
-                } 
+                if (this.data[i % len].type == cat) {
+                    this.data[i % len].content.push(content.content[e]);
+                }
                 i++;
             }
         }
-        
         this.reOrderNumberContent();
     }
 
-    //Methode pour réorganiser les numero
-    private reOrderNumberContent(){
-        for (let id in this.data){
-            this.data[id].content = this.data[id].content.sort((a : any, b : any) => {
+    private reOrderNumberContent() {
+        for (let id in this.data) {
+            this.data[id].content = this.data[id].content.sort((a: any, b: any) => {
                 return a.numero - b.numero;
             });
         }
     }
 
-    //Methode category get
-    public getCategory(){
-        return this.service.Services;
+    public getCategory() {
+        return this.service.getServices();
     }
 
-    //get category Name by type
-    public getCatName(cat : number){
-        return this.service.getCat(cat);
+    public async getCatName(cat: number) {
+        return await this.service.getCat(cat);
     }
 
-    //get category connected
-    public getCatConn(){
+    public async getCatConn() {
         let obj = [];
-        for (let el of this.data){
-            if (el.free){
+        for (let el of this.data) {
+            if (el.free) {
                 obj.push(el.type);
             }
-            
         }
         const tmp = new Set(obj);
         const tmpRes = [...tmp];
-        return tmpRes.map((e : any)=>{
+        return await Promise.all(tmpRes.map(async (e: any) => {
+            const cat = await this.service.getCat(e);
             return {
-                type:this.service.getCat(e).type,
-                category:this.service.getCat(e).category,
-                id:this.service.getCat(e).id
-            }
-        })
+                type: cat?.type,
+                category: cat?.category,
+                id: cat?.id
+            };
+        }));
     }
 
-    public get services(){
+    public get services() {
         return this.service;
     }
-
-    
 }

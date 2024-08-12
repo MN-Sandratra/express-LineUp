@@ -1,131 +1,82 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const fs_1 = __importDefault(require("fs"));
+const service_1 = __importDefault(require("../models/service"));
 class Service {
     constructor() {
-        this.services = {
-            content: [
-                {
-                    type: 1,
-                    category: 'caisse',
-                    id: 'C'
-                },
-                {
-                    type: 2,
-                    category: 'accueil',
-                    id: 'AC'
-                },
-                {
-                    type: 3,
-                    category: 'gestion de compte',
-                    id: 'GC'
-                }
-            ]
-        };
         this.initialize();
     }
     //methode d'initialisation du fichier conteneur
     initialize() {
-        fs_1.default.appendFile('./services.json', '', (err) => {
-            if (err)
-                throw err;
-            fs_1.default.readFile('./services.json', { encoding: 'utf-8' }, (err, data) => {
-                if (data.trim() === '') {
-                    fs_1.default.writeFileSync('./services.json', JSON.stringify(this.services));
-                    console.log('\nServices with new instance !');
-                }
-                else {
-                    this.services = JSON.parse(data);
-                    console.log('\nServices with previous instance !');
-                }
-            });
+        return __awaiter(this, void 0, void 0, function* () {
+            const count = yield service_1.default.countDocuments();
+            if (count === 0) {
+                const initialServices = [
+                    { type: 1, category: 'caisse', id: 'C' },
+                    { type: 2, category: 'accueil', id: 'AC' },
+                    { type: 3, category: 'gestion de compte', id: 'GC' },
+                ];
+                yield service_1.default.insertMany(initialServices);
+                console.log('Services initialized with new instance!');
+            }
+            else {
+                console.log('Services already initialized.');
+            }
         });
     }
     //methode pour ajouter un nouveau service
     addService(cat, id) {
-        var _a, _b;
-        let final = true;
-        this.updateLocalService();
-        for (let i of this.services.content) {
-            if (i.category === cat) {
-                final = false;
-                break;
+        return __awaiter(this, void 0, void 0, function* () {
+            const existingService = yield service_1.default.findOne({ category: cat });
+            if (existingService) {
+                return false;
             }
-        }
-        if (final) {
-            this.services.content.push({
-                type: ((_b = (_a = this.services.content[this.services.content.length - 1]) === null || _a === void 0 ? void 0 : _a.type) !== null && _b !== void 0 ? _b : 0) + 1,
+            const lastService = yield service_1.default.findOne().sort({ type: -1 });
+            const newType = (lastService === null || lastService === void 0 ? void 0 : lastService.type) ? lastService.type + 1 : 1;
+            const newService = new service_1.default({
+                type: newType,
                 category: cat,
-                id: id
+                id: id,
             });
-        }
-        this.updateService();
-        return final;
-    }
-    //methode pour modifier
-    changeService(type, txt, text) {
-        this.updateLocalService();
-        for (let el of this.services.content) {
-            if (el.type == type) {
-                el.category = txt;
-                el.id = text;
-                break;
-            }
-        }
-        this.updateService();
-    }
-    //methode pour supprimer un service
-    deleteService(type) {
-        let final = false;
-        this.updateLocalService();
-        for (let element in this.services.content) {
-            if (this.services.content[element].type == type) {
-                this.services.content.splice(parseInt(element), 1);
-                final = true;
-                break;
-            }
-        }
-        this.updateService();
-        return final;
-    }
-    //methode pour mettre a jour le fichier conteneur
-    updateService() {
-        fs_1.default.writeFile('./services.json', JSON.stringify(this.services), (err) => {
-            if (err)
-                throw err;
-            console.log('\nService updated !');
+            yield newService.save();
+            return true;
         });
     }
-    //methode pour mettre a jour le conteneur local (this.services)
-    updateLocalService() {
-        this.services = JSON.parse(fs_1.default.readFileSync('./services.json', { encoding: 'utf-8' }));
+    // Méthode pour modifier un service
+    changeService(type, category, id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield service_1.default.updateOne({ type }, { category, id });
+        });
     }
-    get Services() {
-        this.updateLocalService();
-        return this.services;
+    // Méthode pour supprimer un service
+    deleteService(type) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const result = yield service_1.default.deleteOne({ type });
+            return result.deletedCount > 0;
+        });
     }
-    //Methode get Category specifique
+    // Méthode pour récupérer tous les services
+    getServices() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield service_1.default.find({});
+        });
+    }
+    // Méthode pour récupérer une catégorie spécifique par ID
     getCat(id) {
-        this.updateLocalService();
-        let result = {
-            category: '',
-            type: 0,
-            id: ''
-        };
-        for (let i of this.services.content) {
-            if (i.type == id) {
-                result = {
-                    category: i.category,
-                    type: i.type,
-                    id: i.id
-                };
-                break;
-            }
-        }
-        return result;
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield service_1.default.findOne({ type: id });
+        });
     }
 }
 exports.default = Service;

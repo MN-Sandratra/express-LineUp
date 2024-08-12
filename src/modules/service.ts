@@ -1,132 +1,65 @@
 import fs from 'fs';
+import ServiceModel from '../models/service';
 
 export default class Service{
-    private services = {
-        content : [
-            {
-                type : 1,
-                category : 'caisse',
-                id : 'C'
-            },
-            {
-                type : 2,
-                category : 'accueil',
-                id : 'AC'
-            },
-            {
-                type : 3,
-                category : 'gestion de compte',
-                id : 'GC'
-            }
-        ]
-    }
-
     constructor(){
         this.initialize();
     }
 
     //methode d'initialisation du fichier conteneur
-    private initialize(){
-        fs.appendFile('./services.json', '',(err : any) => {
-            if (err) throw err;
-            fs.readFile('./services.json',{encoding:'utf-8'},(err : any, data : string) => {
-                if (data.trim() === ''){
-                    fs.writeFileSync('./services.json',JSON.stringify(this.services));
-                    console.log('\nServices with new instance !');
-                }else{
-                    this.services = JSON.parse(data);
-                    console.log('\nServices with previous instance !');
-                }
-            });
-        });
+    private async initialize(){
+        const count = await ServiceModel.countDocuments();
+        if (count === 0) {
+            const initialServices = [
+                { type: 1, category: 'caisse', id: 'C' },
+                { type: 2, category: 'accueil', id: 'AC' },
+                { type: 3, category: 'gestion de compte', id: 'GC' },
+            ];
+            await ServiceModel.insertMany(initialServices);
+            console.log('Services initialized with new instance!');
+        } else {
+            console.log('Services already initialized.');
+        }
     }
 
     //methode pour ajouter un nouveau service
-    public addService(cat : string, id : string) : boolean{
-        let final = true;
-        this.updateLocalService();
-        for (let i of this.services.content){
-            if (i.category === cat){
-                final = false;
-                break;
-            }
+    public async addService(cat: string, id: string): Promise<boolean> {
+        const existingService = await ServiceModel.findOne({ category: cat });
+        if (existingService) {
+            return false;
         }
 
-        if (final){
-            this.services.content.push({
-                type : (this.services.content[this.services.content.length - 1]?.type ?? 0) + 1,
-                category : cat,
-                id : id
-            });
-        }
-        this.updateService();
-        return final;
+        const lastService = await ServiceModel.findOne().sort({ type: -1 });
+        const newType = lastService?.type ? lastService.type + 1 : 1;
+
+        const newService = new ServiceModel({
+            type: newType,
+            category: cat,
+            id: id,
+        });
+
+        await newService.save();
+        return true;
     }
 
-    //methode pour modifier
-    public changeService(type : number,txt : string,text : string){
-        this.updateLocalService();
-        for (let el of this.services.content){
-            if (el.type == type){
-                el.category = txt;
-                el.id = text;
-                break;
-            }
-        }
-        this.updateService();
+    // Méthode pour modifier un service
+    public async changeService(type: number, category: string, id: string) {
+        await ServiceModel.updateOne({ type }, { category, id });
     }
 
-    //methode pour supprimer un service
-    public deleteService(type : number) : boolean{
-        let final = false;
-        this.updateLocalService();
-        for (let element in this.services.content){
-            if (this.services.content[element].type == type){
-                this.services.content.splice(parseInt(element),1);
-                final = true;
-                break;
-            }
-        }
-        this.updateService();
-        return final;
+    // Méthode pour supprimer un service
+    public async deleteService(type: number): Promise<boolean> {
+        const result = await ServiceModel.deleteOne({ type });
+        return result.deletedCount > 0;
     }
 
-    //methode pour mettre a jour le fichier conteneur
-    private updateService(){
-        fs.writeFile('./services.json',JSON.stringify(this.services),(err : any) => {
-            if (err) throw err;
-            console.log('\nService updated !');
-        })
+    // Méthode pour récupérer tous les services
+    public async getServices() {
+        return await ServiceModel.find({});
     }
 
-    //methode pour mettre a jour le conteneur local (this.services)
-    private updateLocalService(){
-        this.services= JSON.parse(fs.readFileSync('./services.json',{encoding:'utf-8'}));
-    }
-
-    get Services() : any{
-        this.updateLocalService();
-        return this.services;
-    }
-
-    //Methode get Category specifique
-    public getCat(id : number) : any{
-        this.updateLocalService();
-        let result = {
-            category : '',
-            type : 0,
-            id : ''
-        };
-        for (let i of this.services.content){
-            if (i.type == id){
-                result = {
-                    category : i.category,
-                    type : i.type,
-                    id : i.id
-                };
-                break;
-            }
-        }
-        return result;
+    // Méthode pour récupérer une catégorie spécifique par ID
+    public async getCat(id: number) {
+        return await ServiceModel.findOne({ type: id });
     }
 }

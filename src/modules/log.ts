@@ -1,78 +1,77 @@
-//module pour gerer les log
-import fs from 'fs';
+import LogModel from '../models/log';
 
-export default class Log{
-    private fileName = './Log.json';
-    private fileContent = {
-        itteration : 0,
-        data : [],
-        date : new Date()
+export default class Log {
+    private logData: any;
+
+    constructor() {
+        this.initializeLog();
     }
 
-    //initialisation du fichier log en le créant s'il n'existe pas
-    //ou en chargeant son contenu dans fileContent
-    constructor(){
-        fs.appendFile(this.fileName, '',(err : any) => {
-            if (err) throw err;
-            fs.readFile(this.fileName,{encoding:'utf-8'},(err : any, data : string) => {
-                if (data.trim() === ''){
-                    fs.writeFileSync(this.fileName,JSON.stringify(this.fileContent));
-                    console.log('\nLog initialized with new instance !');
-                }else{
-                    this.fileContent = JSON.parse(data);
-                    console.log('\nLog initialized with previous instance !');
-                }
-                if (!this.datesAreOnSameDay(new Date(this.fileContent.date),new Date())){
-                    this.resetLog();
-                }
+    private async initializeLog() {
+        const logExists = await LogModel.exists({});
+        if (!logExists) {
+            const newLog = new LogModel({
+                iteration: 0,
+                data: [],
+                date: new Date()
             });
-        });
-    }
-
-    //Methode pour réinitialiser le fichier log
-    public resetLog(){
-        const fileContent = {
-            itteration : 0,
-            data : [],
-            date : new Date()
+            await newLog.save();
+            console.log('\nLog initialized with new instance!');
+        } else {
+            console.log('\nLog initialized with previous instance!');
+            const log = await LogModel.findOne({});
+            if (log && !this.datesAreOnSameDay(new Date(log.date), new Date())) {
+                this.resetLog();
+            }
         }
+    }
 
-        fs.writeFile(this.fileName,JSON.stringify(fileContent),(err : any) =>{
-            if (err) throw err;
-            console.log('\nReset of the log system successed !');
+    public async resetLog() {
+        await LogModel.updateOne({}, {
+            $set: {
+                iteration: 0,
+                data: [],
+                date: new Date()
+            }
         });
+        console.log('\nReset of the log system succeeded!');
     }
 
-    //Methode pour mettre à jour le fichier log
-    public updateLog(data : [], lastItteration : number){
-        const fileContent = {
-            itteration : lastItteration,
-            data : data,
-            date : new Date()
-        }
-
-        this.fileContent = fileContent;
-
-        fs.writeFile(this.fileName,JSON.stringify(this.fileContent),(err : any) => {
-            if (err) throw err;
-            console.log('\nLog updated !');
-        })
+    public async updateData(data: any[]) {
+        await LogModel.updateOne({}, {
+            $set: {
+                data: data,
+                date: new Date()
+            }
+        });
+        console.log('\nData updated!');
     }
 
-    //Methode pour recuperer le contenue du fichier Log
-    public getFileContent() : any{
-        return this.fileContent;
+    public async updateIteration(iteration: number) {
+        await LogModel.updateOne({}, {
+            $set: {
+                iteration: iteration,
+                date: new Date()
+            }
+        });
+        console.log('\nIteration updated!');
     }
 
-    //Methode pour comparer date
-    private datesAreOnSameDay(first : Date, second : Date){
-        return (this.formatDate(first) === this.formatDate(second));
+    public async getData(): Promise<any> {
+        const log = await LogModel.findOne({});
+        return log ? log.data : null;
     }
-    
-    private formatDate(obj : Date) : string{
-        let s = '';
-        s += obj.getFullYear()+'/'+obj.getMonth()+'/'+obj.getDate();
-        return s;
+
+    public async getIteration(): Promise<number> {
+        const log = await LogModel.findOne({});
+        return log ? log.iteration : 0;
     }
-        
+
+    private datesAreOnSameDay(first: Date, second: Date): boolean {
+        return this.formatDate(first) === this.formatDate(second);
+    }
+
+    private formatDate(obj: Date): string {
+        return `${obj.getFullYear()}/${obj.getMonth() + 1}/${obj.getDate()}`;
+    }
 }

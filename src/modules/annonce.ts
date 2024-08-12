@@ -1,85 +1,58 @@
-import fs from 'fs';
+import Annonce from '../models/annonce';
 
-export default class AnnonceManager{
-    private annonces = [{
-        id : 0,
-        txt : ''
-    }];
-    constructor(){
-        this.init();
+export default class AnnonceManager {
+    constructor() {}
+
+    public async getAnnonce() {
+        try {
+            return await Annonce.find();
+        } catch (error) {
+            console.error('Error getting annonces:', error);
+            throw new Error('Could not retrieve annonces');
+        }
     }
 
-    private init(){
-        fs.appendFile('./annonces.json', '',(err : any) => {
-            if (err) throw err;
-            fs.readFile('./annonces.json',{encoding:'utf-8'},(err : any, data : string) => {
-                if (data.trim() === ''){
-                    fs.writeFileSync('./annonces.json',JSON.stringify(this.annonces));
-                    console.log('\nAnnonces initialized with new instance !');
-                }else{
-                    this.annonces = JSON.parse(data);
-                    console.log('\nAnnonces initialized with previous instance !');
-                }
+    public async getAnnonceByID(id: number) {
+        try {
+            return await Annonce.findOne({ id });
+        } catch (error) {
+            console.error(`Error getting annonce with ID ${id}:`, error);
+            throw new Error('Could not retrieve the annonce');
+        }
+    }
+
+    public async addAnnonce(txt: string) {
+        try {
+            const lastAnnonce = await Annonce.findOne().sort({ id: -1 });
+            const newId = lastAnnonce ? lastAnnonce.id + 1 : 1;
+
+            const newAnnonce = new Annonce({
+                id: newId,
+                txt: txt,
             });
-        });
-    }
 
-    public getAnnonce(){
-        this.updateLocal();
-        return this.annonces.filter((e : any)=>{
-            return e.txt.trim() !== '';
-        });
-    }
-
-    public getAnnonceByID(id : number){
-        let annonce = {};
-        for (let e of this.annonces){
-            if (e.id == id){
-                annonce = e;
-                break;
-            }
+            await newAnnonce.save();
+        } catch (error) {
+            console.error('Error adding new annonce:', error);
+            throw new Error('Could not add the annonce');
         }
-        return annonce;
     }
 
-    public addAnnonce(txt : string){
-        this.updateLocal();
-        this.annonces.push({
-            id : this.annonces[this.annonces.length-1].id + 1,
-            txt : txt
-        });
-        this.updateFile();
-    }
-
-    public removeAnnonce(id : number){
-        this.updateLocal();
-        for (let e in this.annonces){
-            if (this.annonces[e].id==id){
-                this.annonces.splice(parseInt(e),1);
-                break;
-            }
+    public async removeAnnonce(id: number) {
+        try {
+            await Annonce.deleteOne({ id });
+        } catch (error) {
+            console.error(`Error removing annonce with ID ${id}:`, error);
+            throw new Error('Could not remove the annonce');
         }
-        this.updateFile();
     }
 
-    public modifAnnonce(id : number, txt : string){
-        for (let e in this.annonces){
-            if (this.annonces[e].id==id){
-                this.annonces[e].txt = txt;
-                break;
-            }
+    public async modifAnnonce(id: number, txt: string) {
+        try {
+            await Annonce.updateOne({ id }, { txt });
+        } catch (error) {
+            console.error(`Error modifying annonce with ID ${id}:`, error);
+            throw new Error('Could not modify the annonce');
         }
-        this.updateFile();
-    }
-
-    private updateLocal(){
-        this.annonces= JSON.parse(fs.readFileSync('./annonces.json',{encoding:'utf-8'}));
-    }
-
-    private updateFile(){
-        fs.writeFile('./annonces.json',JSON.stringify(this.annonces),(err : any) => {
-            if (err) throw err;
-            console.log('\nVideos updated !');
-        })
     }
 }

@@ -1,77 +1,94 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-//module pour gerer les log
-const fs_1 = __importDefault(require("fs"));
+const log_1 = __importDefault(require("../models/log"));
 class Log {
-    //initialisation du fichier log en le créant s'il n'existe pas
-    //ou en chargeant son contenu dans fileContent
     constructor() {
-        this.fileName = './Log.json';
-        this.fileContent = {
-            itteration: 0,
-            data: [],
-            date: new Date()
-        };
-        fs_1.default.appendFile(this.fileName, '', (err) => {
-            if (err)
-                throw err;
-            fs_1.default.readFile(this.fileName, { encoding: 'utf-8' }, (err, data) => {
-                if (data.trim() === '') {
-                    fs_1.default.writeFileSync(this.fileName, JSON.stringify(this.fileContent));
-                    console.log('\nLog initialized with new instance !');
-                }
-                else {
-                    this.fileContent = JSON.parse(data);
-                    console.log('\nLog initialized with previous instance !');
-                }
-                if (!this.datesAreOnSameDay(new Date(this.fileContent.date), new Date())) {
+        this.initializeLog();
+    }
+    initializeLog() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const logExists = yield log_1.default.exists({});
+            if (!logExists) {
+                const newLog = new log_1.default({
+                    iteration: 0,
+                    data: [],
+                    date: new Date()
+                });
+                yield newLog.save();
+                console.log('\nLog initialized with new instance!');
+            }
+            else {
+                console.log('\nLog initialized with previous instance!');
+                const log = yield log_1.default.findOne({});
+                if (log && !this.datesAreOnSameDay(new Date(log.date), new Date())) {
                     this.resetLog();
                 }
-            });
+            }
         });
     }
-    //Methode pour réinitialiser le fichier log
     resetLog() {
-        const fileContent = {
-            itteration: 0,
-            data: [],
-            date: new Date()
-        };
-        fs_1.default.writeFile(this.fileName, JSON.stringify(fileContent), (err) => {
-            if (err)
-                throw err;
-            console.log('\nReset of the log system successed !');
+        return __awaiter(this, void 0, void 0, function* () {
+            yield log_1.default.updateOne({}, {
+                $set: {
+                    iteration: 0,
+                    data: [],
+                    date: new Date()
+                }
+            });
+            console.log('\nReset of the log system succeeded!');
         });
     }
-    //Methode pour mettre à jour le fichier log
-    updateLog(data, lastItteration) {
-        const fileContent = {
-            itteration: lastItteration,
-            data: data,
-            date: new Date()
-        };
-        this.fileContent = fileContent;
-        fs_1.default.writeFile(this.fileName, JSON.stringify(this.fileContent), (err) => {
-            if (err)
-                throw err;
-            console.log('\nLog updated !');
+    updateData(data) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield log_1.default.updateOne({}, {
+                $set: {
+                    data: data,
+                    date: new Date()
+                }
+            });
+            console.log('\nData updated!');
         });
     }
-    //Methode pour recuperer le contenue du fichier Log
-    getFileContent() {
-        return this.fileContent;
+    updateIteration(iteration) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield log_1.default.updateOne({}, {
+                $set: {
+                    iteration: iteration,
+                    date: new Date()
+                }
+            });
+            console.log('\nIteration updated!');
+        });
     }
-    //Methode pour comparer date
+    getData() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const log = yield log_1.default.findOne({});
+            return log ? log.data : null;
+        });
+    }
+    getIteration() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const log = yield log_1.default.findOne({});
+            return log ? log.iteration : 0;
+        });
+    }
     datesAreOnSameDay(first, second) {
-        return (this.formatDate(first) === this.formatDate(second));
+        return this.formatDate(first) === this.formatDate(second);
     }
     formatDate(obj) {
-        let s = '';
-        s += obj.getFullYear() + '/' + obj.getMonth() + '/' + obj.getDate();
-        return s;
+        return `${obj.getFullYear()}/${obj.getMonth() + 1}/${obj.getDate()}`;
     }
 }
 exports.default = Log;

@@ -1,4 +1,5 @@
 import fs from 'fs';
+import Video from '../models/video';
 
 export default class VideoManager{
     private file = [
@@ -8,67 +9,18 @@ export default class VideoManager{
         }
     ]
 
-    constructor(){
-        this.initFile();
-        this.init();
-    }
-
-    private init(){
-        const express = require("express");
-        const fileupload = require("express-fileupload");
-        const cors = require("cors");
-        const bodyParser = require('body-parser');
-        
-        const app = express();
-        
-        app.use(cors());
-        app.use(fileupload());
-        app.use(express.static("files"));
-        app.use(bodyParser.json());
-        app.use(bodyParser.urlencoded({ extended: true }));
-        
-        app.post("/api/upload", (req : any, res: any) => {
-            this.updateLocal();
-            const newpath = "./public/assets/";
-            const file = req.files.file;
-            const filename = file.name;
-            
-            file.mv(`${newpath}${filename}`, (err : any) => {
-                if (err) {
-                    res.status(500).send({ message: "File upload failed", code: 200 });
-                }   
-                this.file.push({
-                    name : filename,
-                    link : '/assets/'+filename
-                })
-                this.updateFile();
-                res.status(200).send({ message: "File Uploaded", code: 200 });
-                
+    constructor(){}
+    
+    public async addVideo(filename: string, filepath: string) {
+        try {
+            const newVideo = new Video({
+                name: filename,
+                link: filepath,
             });
-        });
-        
-        app.listen(8080, () => {
-        console.log("Server running successfully on 8080");
-        });
-    }
-
-    private initFile(){
-        fs.appendFile('./videos.json', '',(err : any) => {
-            if (err) throw err;
-            fs.readFile('./videos.json',{encoding:'utf-8'},(err : any, data : string) => {
-                if (data.trim() === ''){
-                    fs.writeFileSync('./videos.json',JSON.stringify(this.file));
-                    console.log('\nVideos with new instance !');
-                }else{
-                    this.file = JSON.parse(data);
-                    console.log('\nVideos with previous instance !');
-                }
-            });
-        });
-    }
-
-    private updateLocal(){
-        this.file= JSON.parse(fs.readFileSync('./videos.json',{encoding:'utf-8'}));
+            await newVideo.save();
+        } catch (error) {
+            console.log("error on add new video ")
+        }  
     }
 
     private updateFile(){
@@ -78,22 +30,12 @@ export default class VideoManager{
         })
     }
 
-    public getVideo(){
-        this.updateLocal();
-        return this.file.filter((e : any)=>{
-            return e.name !=='vide' && e.link!=='vide';
-        });
+    public async getVideo(){
+        return await Video.find({ name: { $ne: 'vide' } });
     }
 
-    public delVideo(name : string){
-        this.updateLocal();
+    public async delVideo(name : string){
+        await Video.deleteOne({ name });
         fs.unlinkSync('./public/assets/'+name);
-        for (let e in this.file){
-            if (this.file[e].name === name){
-                this.file.splice(parseInt(e),1);
-                break;
-            }
-        }
-        this.updateFile();
     }
 }

@@ -1,9 +1,19 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = __importDefault(require("fs"));
+const video_1 = __importDefault(require("../models/video"));
 class VideoManager {
     constructor() {
         this.file = [
@@ -12,59 +22,20 @@ class VideoManager {
                 link: 'vide'
             }
         ];
-        this.initFile();
-        this.init();
     }
-    init() {
-        const express = require("express");
-        const fileupload = require("express-fileupload");
-        const cors = require("cors");
-        const bodyParser = require('body-parser');
-        const app = express();
-        app.use(cors());
-        app.use(fileupload());
-        app.use(express.static("files"));
-        app.use(bodyParser.json());
-        app.use(bodyParser.urlencoded({ extended: true }));
-        app.post("/api/upload", (req, res) => {
-            this.updateLocal();
-            const newpath = "./public/assets/";
-            const file = req.files.file;
-            const filename = file.name;
-            file.mv(`${newpath}${filename}`, (err) => {
-                if (err) {
-                    res.status(500).send({ message: "File upload failed", code: 200 });
-                }
-                this.file.push({
+    addVideo(filename, filepath) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const newVideo = new video_1.default({
                     name: filename,
-                    link: '/assets/' + filename
+                    link: filepath,
                 });
-                this.updateFile();
-                res.status(200).send({ message: "File Uploaded", code: 200 });
-            });
+                yield newVideo.save();
+            }
+            catch (error) {
+                console.log("error on add new video ");
+            }
         });
-        app.listen(8080, () => {
-            console.log("Server running successfully on 8080");
-        });
-    }
-    initFile() {
-        fs_1.default.appendFile('./videos.json', '', (err) => {
-            if (err)
-                throw err;
-            fs_1.default.readFile('./videos.json', { encoding: 'utf-8' }, (err, data) => {
-                if (data.trim() === '') {
-                    fs_1.default.writeFileSync('./videos.json', JSON.stringify(this.file));
-                    console.log('\nVideos with new instance !');
-                }
-                else {
-                    this.file = JSON.parse(data);
-                    console.log('\nVideos with previous instance !');
-                }
-            });
-        });
-    }
-    updateLocal() {
-        this.file = JSON.parse(fs_1.default.readFileSync('./videos.json', { encoding: 'utf-8' }));
     }
     updateFile() {
         fs_1.default.writeFile('./videos.json', JSON.stringify(this.file), (err) => {
@@ -74,21 +45,15 @@ class VideoManager {
         });
     }
     getVideo() {
-        this.updateLocal();
-        return this.file.filter((e) => {
-            return e.name !== 'vide' && e.link !== 'vide';
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield video_1.default.find({ name: { $ne: 'vide' } });
         });
     }
     delVideo(name) {
-        this.updateLocal();
-        fs_1.default.unlinkSync('./public/assets/' + name);
-        for (let e in this.file) {
-            if (this.file[e].name === name) {
-                this.file.splice(parseInt(e), 1);
-                break;
-            }
-        }
-        this.updateFile();
+        return __awaiter(this, void 0, void 0, function* () {
+            yield video_1.default.deleteOne({ name });
+            fs_1.default.unlinkSync('./public/assets/' + name);
+        });
     }
 }
 exports.default = VideoManager;
